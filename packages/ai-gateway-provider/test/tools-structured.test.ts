@@ -1,5 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { generateObject, generateText, jsonSchema, tool } from "ai";
+import { createUnified } from "../src/providers/unified";
+import { generateObject, generateText, jsonSchema, stepCountIs, tool } from "ai";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -88,6 +89,114 @@ describe("Tool calling through the gateway", () => {
 		expect(result.toolCalls).toHaveLength(1);
 		expect(result.toolCalls[0]?.toolName).toBe("get_weather");
 		expect(result.toolCalls[0]?.input).toMatchObject({ location: "San Francisco" });
+	});
+
+	it("preserves Gemini thought signatures across unified tool-call turns", async () => {
+		const signature = "SIG-TEST-ONLY";
+		const capturedRequests: unknown[] = [];
+
+		server.use(
+			http.post(GATEWAY_URL, async ({ request }) => {
+				capturedRequests.push(await request.json());
+
+				if (capturedRequests.length === 1) {
+					return HttpResponse.json({
+						id: "chatcmpl-1",
+						object: "chat.completion",
+						created: 1,
+						model: "gemini-3-pro",
+						choices: [
+							{
+								index: 0,
+								message: {
+									role: "assistant",
+									content: null,
+									tool_calls: [
+										{
+											id: "call-1",
+											type: "function",
+											function: {
+												name: "get_weather",
+												arguments: JSON.stringify({ location: "Tokyo" }),
+											},
+											extra_content: {
+												google: { thought_signature: signature },
+											},
+										},
+									],
+								},
+								finish_reason: "tool_calls",
+							},
+						],
+						usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+					});
+				}
+
+				return HttpResponse.json({
+					id: "chatcmpl-2",
+					object: "chat.completion",
+					created: 1,
+					model: "gemini-3-pro",
+					choices: [
+						{
+							index: 0,
+							message: { role: "assistant", content: "done" },
+							finish_reason: "stop",
+						},
+					],
+					usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+				});
+			}),
+		);
+
+		const { aigateway } = gateway();
+		const result = await generateText({
+			model: aigateway([createUnified()("gemini-3-pro")]),
+			prompt: "Get the weather in Tokyo.",
+			tools: {
+				get_weather: tool({
+					description: "Get the weather for a location",
+					inputSchema: jsonSchema<{ location: string }>({
+						type: "object",
+						properties: { location: { type: "string" } },
+						required: ["location"],
+						additionalProperties: false,
+					}),
+					execute: async ({ location }) => ({ location, temperature: 21 }),
+				}),
+			},
+			stopWhen: stepCountIs(2),
+			maxRetries: 0,
+		});
+
+		expect(result.text).toBe("done");
+		expect(capturedRequests).toHaveLength(2);
+
+		const secondRequest = (
+			capturedRequests[1] as Array<{
+				provider: string;
+				endpoint: string;
+				query: {
+					messages?: Array<{
+						role?: string;
+						tool_calls?: Array<{
+							extra_content?: {
+								google?: { thought_signature?: string };
+							};
+						}>;
+					}>;
+				};
+			}>
+		)[0];
+		expect(secondRequest?.provider).toBe("compat");
+		expect(secondRequest?.endpoint).toBe("chat/completions");
+		const assistantToolCall = secondRequest?.query.messages?.find(
+			(message) => message.role === "assistant" && message.tool_calls,
+		);
+
+		expect(assistantToolCall?.tool_calls?.[0]?.extra_content?.google?.thought_signature).toBe(
+			signature,
+		);
 	});
 });
 
