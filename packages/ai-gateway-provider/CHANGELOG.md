@@ -1,5 +1,11 @@
 # ai-gateway-provider
 
+## 4.0.1
+
+### Patch Changes
+
+- [#658](https://github.com/cloudflare/ai/pull/658) [`1bffec5`](https://github.com/cloudflare/ai/commit/1bffec556c574a20fc79afd5c30d04dc58415578) Thanks [@superhighfives](https://github.com/superhighfives)! - Require an OpenAI-compatible provider version that preserves Gemini thought signatures across unified tool-call turns.
+
 ## 4.0.0
 
 ### Major Changes
