@@ -115,9 +115,9 @@ export function createRun(config: CreateRunConfig): AiRun {
 
 		const modelPath = String(model).startsWith("run/") ? model : `run/${model}`;
 
-		// The direct API serves third-party models (e.g. `typesafe/jev`) only at
-		// `/ai/run`, with the model id in the body: `/ai/run/<vendor>/<model>`
-		// returns 7000 "No route for that URI" for them.
+		// The model-in-path endpoint only serves Workers AI (`@cf/`) models;
+		// third-party models such as `typesafe/jev` go to `/ai/run` with the model
+		// id in the body. https://developers.cloudflare.com/ai-gateway/usage/rest-api/
 		const thirdParty = !gateway?.id && !/^(@|run\/)/.test(String(model));
 		const directPath = thirdParty ? "run" : modelPath;
 
