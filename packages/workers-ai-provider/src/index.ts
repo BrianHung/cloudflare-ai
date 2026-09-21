@@ -277,8 +277,7 @@ export interface WorkersAI {
 	): WorkersAIRerankingModel;
 
 	/**
-	 * Creates a model for evaluation with `experimental_evaluate`, such as
-	 * TypeSafe's Jev (`typesafe/jev`). Experimental, like the AI SDK API.
+	 * Creates a model for `experimental_evaluate`, such as TypeSafe's Jev.
 	 **/
 	evaluation(modelId: EvaluationModels): WorkersAIEvaluationModel;
 	evaluationModel(modelId: EvaluationModels): WorkersAIEvaluationModel;

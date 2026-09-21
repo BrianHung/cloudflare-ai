@@ -115,23 +115,20 @@ export function createRun(config: CreateRunConfig): AiRun {
 
 		const modelPath = String(model).startsWith("run/") ? model : `run/${model}`;
 
-		// Third-party models (`"<vendor>/<model>"`, e.g. `typesafe/jev`) have no
-		// `/ai/run/<model>` route on the direct API; it takes them at `/ai/run`
-		// with the model id in the body instead.
+		// The direct API serves third-party models (e.g. `typesafe/jev`) only at
+		// `/ai/run`, with the model id in the body: `/ai/run/<vendor>/<model>`
+		// returns 7000 "No route for that URI" for them.
 		const thirdParty = !gateway?.id && !/^(@|run\/)/.test(String(model));
+		const directPath = thirdParty ? "run" : modelPath;
 
 		// Build URL: use AI Gateway if gateway option is provided, otherwise direct API
-		const url = thirdParty
-			? `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run${
+		const url = gateway?.id
+			? `https://gateway.ai.cloudflare.com/v1/${accountId}/${gateway.id}/workers-ai/${modelPath}${
 					queryString ? `?${queryString}` : ""
 				}`
-			: gateway?.id
-				? `https://gateway.ai.cloudflare.com/v1/${accountId}/${gateway.id}/workers-ai/${modelPath}${
-						queryString ? `?${queryString}` : ""
-					}`
-				: `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/${modelPath}${
-						queryString ? `?${queryString}` : ""
-					}`;
+			: `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/${directPath}${
+					queryString ? `?${queryString}` : ""
+				}`;
 
 		const headers: Record<string, string> = {
 			Authorization: `Bearer ${apiKey}`,

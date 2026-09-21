@@ -1,5 +1,4 @@
 import {
-	InvalidArgumentError,
 	InvalidResponseDataError,
 	type Experimental_EvaluationModelV4 as EvaluationModelV4,
 	type Experimental_EvaluationModelV4Answer as EvaluationModelV4Answer,
@@ -63,21 +62,6 @@ export class WorkersAIEvaluationModel implements EvaluationModelV4 {
 	): Promise<Awaited<ReturnType<EvaluationModelV4["doEvaluate"]>>> {
 		const { state, questions, abortSignal } = options;
 
-		for (const [id, question] of Object.entries(questions)) {
-			if (question.type === "choice" && Object.keys(question.criteria).length > 255) {
-				throw new InvalidArgumentError({
-					argument: `questions.${id}.criteria`,
-					message: "Jev choice questions support at most 255 options.",
-				});
-			}
-			if (question.type === "score" && question.criteria.length > 10) {
-				throw new InvalidArgumentError({
-					argument: `questions.${id}.criteria`,
-					message: "Jev score questions support at most 10 levels.",
-				});
-			}
-		}
-
 		// Jev calls a boolean question `noul`.
 		const inputs = {
 			state,
@@ -137,26 +121,15 @@ export class WorkersAIEvaluationModel implements EvaluationModelV4 {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Third-party models on Workers AI report a run `state` and nest their output
- * under `result`: `{ state: "Completed", result: { model, answers, usage } }`.
- */
 function unwrapRun(result: unknown): JevOutput {
-	const run = result as { state?: unknown; result?: unknown; answers?: unknown } | null;
-	if (run && typeof run.state === "string" && run.state !== "Completed") {
+	const run = result as { state?: unknown; result?: JevOutput } | null;
+	if (run?.state !== "Completed" || typeof run.result?.answers !== "object") {
 		throw new InvalidResponseDataError({
 			data: result,
-			message: `Workers AI run did not complete (state: ${run.state}).`,
+			message: `Workers AI evaluation did not complete (state: ${String(run?.state)}).`,
 		});
 	}
-	const output = (run && "answers" in run ? run : run?.result) as JevOutput | undefined;
-	if (!output || typeof output.answers !== "object" || output.answers === null) {
-		throw new InvalidResponseDataError({
-			data: result,
-			message: "Workers AI evaluation response is missing answers.",
-		});
-	}
-	return output;
+	return run.result;
 }
 
 function toAnswer(answer: JevAnswer): EvaluationModelV4Answer {

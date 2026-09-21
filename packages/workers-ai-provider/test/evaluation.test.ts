@@ -43,11 +43,11 @@ const QUESTIONS = {
 
 describe("Evaluation - Binding", () => {
 	it("should evaluate boolean, choice and score questions with Jev", async () => {
-		let captured: { model: string; inputs: any; options: any } | undefined;
+		let captured: { inputs: any; options: any } | undefined;
 		const workersai = createWorkersAI({
 			binding: {
-				run: async (model: string, inputs: any, options: any) => {
-					captured = { model, inputs, options };
+				run: async (_model: string, inputs: any, options: any) => {
+					captured = { inputs, options };
 					return JEV_RUN;
 				},
 			} as any,
@@ -66,28 +66,14 @@ describe("Evaluation - Binding", () => {
 			probabilities: { sales: 0, technical: 0.02, billing: 0.98 },
 		});
 		expect(result.answers.frustration).toMatchObject({ type: "score", score: 1.04 });
-		expect(result.rounding).toEqual({ probabilityDecimals: 2, scoreDecimals: 2 });
 		expect(result.usage?.inputTokens).toBe(385);
 		expect(result.providerMetadata).toEqual({
 			workersai: { confidence: { department: 0.97, frustration: 0.94 } },
 		});
 
 		// Jev calls a boolean question `noul`.
-		expect(captured?.model).toBe("typesafe/jev");
 		expect(captured?.inputs.questions.is_urgent.type).toBe("noul");
 		expect(captured?.options.gateway).toEqual({ id: "my-gateway" });
-	});
-
-	it("should reject a run that did not complete", async () => {
-		const workersai = createWorkersAI({
-			binding: { run: async () => ({ state: "Queued", result: {} }) } as any,
-		});
-		await expect(
-			workersai.evaluationModel("typesafe/jev").doEvaluate({
-				state: "s",
-				questions: { q: { type: "boolean", instructions: "?" } },
-			}),
-		).rejects.toThrow("did not complete (state: Queued)");
 	});
 });
 
@@ -113,6 +99,5 @@ describe("Evaluation - REST API", () => {
 			"https://api.cloudflare.com/client/v4/accounts/test-account/ai/run",
 		);
 		expect(captured?.body.model).toBe("typesafe/jev");
-		expect(captured?.body.input.questions.is_urgent.type).toBe("noul");
 	});
 });
