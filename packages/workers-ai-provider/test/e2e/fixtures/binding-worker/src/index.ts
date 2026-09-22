@@ -449,6 +449,21 @@ export default {
 					}
 				}
 
+				// ----- Evaluation -----
+				case "/evaluate": {
+					const evBody = body as Parameters<
+						ReturnType<typeof provider.evaluationModel>["doEvaluate"]
+					>[0];
+					try {
+						const result = await provider
+							.evaluationModel("typesafe/jev")
+							.doEvaluate({ state: evBody.state, questions: evBody.questions });
+						return jsonResponse({ answers: result.answers });
+					} catch (err: unknown) {
+						return jsonResponse({ error: (err as Error).message }, 500);
+					}
+				}
+
 				default:
 					return jsonResponse({ error: `Unknown path: ${url.pathname}` }, 404);
 			}
