@@ -121,8 +121,16 @@ export class WorkersAIEvaluationModel implements EvaluationModelV4 {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * The binding and the direct REST API return the run,
+ * `{ state: "Completed", result: output }`. Through AI Gateway over REST,
+ * `createRun` unwraps it once more, leaving the output itself.
+ */
 function unwrapRun(result: unknown): JevOutput {
-	const run = result as { state?: unknown; result?: JevOutput } | null;
+	const run = result as { state?: unknown; result?: JevOutput; answers?: unknown } | null;
+	if (typeof run?.answers === "object" && run.answers !== null) {
+		return run as unknown as JevOutput;
+	}
 	if (run?.state !== "Completed" || typeof run.result?.answers !== "object") {
 		throw new InvalidResponseDataError({
 			data: result,

@@ -100,4 +100,28 @@ describe("Evaluation - REST API", () => {
 		);
 		expect(captured?.body.model).toBe("typesafe/jev");
 	});
+
+	it("should read the unwrapped output returned through AI Gateway", async () => {
+		let url: string | undefined;
+		const workersai = createWorkersAI({
+			accountId: "test-account",
+			apiKey: "test-key",
+			gateway: { id: "my-gateway" },
+			fetch: (async (input: string) => {
+				url = input;
+				// AI Gateway returns the run without the REST `{ result }` envelope.
+				return Response.json(JEV_RUN);
+			}) as typeof fetch,
+		});
+
+		const result = await workersai.evaluationModel("typesafe/jev").doEvaluate({
+			state: "Help! My payouts have been failing for 3 days.",
+			questions: QUESTIONS,
+		});
+
+		expect(result.answers.is_urgent).toEqual({ type: "boolean", probability: 0.95 });
+		expect(url).toBe(
+			"https://gateway.ai.cloudflare.com/v1/test-account/my-gateway/workers-ai/run/typesafe/jev",
+		);
+	});
 });

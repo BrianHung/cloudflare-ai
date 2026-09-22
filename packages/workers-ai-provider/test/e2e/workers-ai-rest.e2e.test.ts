@@ -961,6 +961,25 @@ describe.skipIf(skip())("Workers AI REST E2E", () => {
 				`  [evaluation] Jev OK — paid ${JSON.stringify(paid)}, overdue ${JSON.stringify(overdue)}`,
 			);
 		});
+
+		it("TypeSafe Jev — should answer through AI Gateway via REST", async () => {
+			const provider = createWorkersAI({
+				accountId: ACCOUNT_ID!,
+				apiKey: API_TOKEN!,
+				gateway: { id: process.env.GATEWAY_ID ?? "default" },
+			});
+
+			const { answers } = await provider.evaluationModel("typesafe/jev").doEvaluate({
+				state: "The invoice was paid in full on March 3.",
+				questions: {
+					paid: { type: "boolean", instructions: "Has the invoice been paid?" },
+				},
+			});
+
+			expect(answers.paid.type === "boolean" && answers.paid.probability).toBeGreaterThan(
+				0.5,
+			);
+		});
 	});
 
 	// ------------------------------------------------------------------
