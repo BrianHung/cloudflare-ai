@@ -748,6 +748,33 @@ describe("Workers AI Binding E2E", () => {
 	});
 
 	// ------------------------------------------------------------------
+	// Evaluation via binding
+	// ------------------------------------------------------------------
+	describe("evaluation via binding", () => {
+		it("TypeSafe Jev — answers boolean questions via binding", async () => {
+			if (!serverReady) return;
+
+			const data = await post("/evaluate", {
+				state: "The invoice was paid in full on March 3.",
+				questions: {
+					paid: { type: "boolean", instructions: "Has the invoice been paid?" },
+					overdue: { type: "boolean", instructions: "Is the invoice still unpaid?" },
+				},
+			});
+
+			if (data.error) {
+				console.log(`  [evaluation] binding: ${data.error}`);
+				return;
+			}
+
+			const answers = data.answers as Record<string, { probability: number }>;
+			expect(answers.paid.probability).toBeGreaterThan(0.5);
+			expect(answers.overdue.probability).toBeLessThan(0.5);
+			console.log(`  [evaluation] Jev binding OK — ${JSON.stringify(answers)}`);
+		});
+	});
+
+	// ------------------------------------------------------------------
 	// Speech (TTS) via binding
 	// ------------------------------------------------------------------
 	describe("speech via binding", () => {

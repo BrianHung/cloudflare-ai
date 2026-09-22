@@ -89,6 +89,7 @@ Some good defaults:
 | Transcription  | `@cf/deepgram/nova-3`                  | Fast, high accuracy                 |
 | Text-to-Speech | `@cf/deepgram/aura-2-en`               | Context-aware, natural pacing       |
 | Reranking      | `@cf/baai/bge-reranker-base`           | Fast document reranking             |
+| Evaluation     | `typesafe/jev`                         | Calibrated yes/no, choice and score |
 
 ## Text generation
 
@@ -305,6 +306,32 @@ const { results } = await rerank({
 
 // results is sorted by relevance score
 ```
+
+## Evaluation
+
+Answer typed questions about a shared state with calibrated probabilities instead of generated text, using [TypeSafe's Jev](https://developers.cloudflare.com/ai/models/typesafe/jev/). Evaluation models and `experimental_evaluate` are experimental in the AI SDK (`ai@7.0.105` or later).
+
+```ts
+import { experimental_evaluate } from "ai";
+
+const { answers } = await experimental_evaluate({
+	model: workersai.evaluationModel("typesafe/jev"),
+	state: "Help! My payouts have been failing for 3 days.",
+	questions: {
+		urgent: { type: "boolean", instructions: "Does this convey urgency?" },
+		department: {
+			type: "choice",
+			instructions: "Which team should handle this?",
+			criteria: { billing: "Payments", technical: "Bugs", sales: "Pricing" },
+		},
+	},
+});
+
+answers.urgent.probability; // 0.95
+answers.department.choice; // "billing"
+```
+
+Jev rounds probabilities to two decimals, which the result declares in `rounding`. Its confidence in choice and score answers is in `providerMetadata.workersai.confidence`.
 
 ## AI Search
 
@@ -537,6 +564,9 @@ workersai.speech(modelId);
 
 // Reranking — for rerank
 workersai.reranking(modelId);
+
+// Evaluation — for experimental_evaluate
+workersai.evaluationModel(modelId);
 ```
 
 ### `createAISearch(options)`

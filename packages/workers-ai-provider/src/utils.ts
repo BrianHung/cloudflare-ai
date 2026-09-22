@@ -115,12 +115,18 @@ export function createRun(config: CreateRunConfig): AiRun {
 
 		const modelPath = String(model).startsWith("run/") ? model : `run/${model}`;
 
+		// The model-in-path endpoint only serves Workers AI (`@cf/`) models;
+		// third-party models such as `typesafe/jev` go to `/ai/run` with the model
+		// id in the body. https://developers.cloudflare.com/ai-gateway/usage/rest-api/
+		const thirdParty = !gateway?.id && !/^(@|run\/)/.test(String(model));
+		const directPath = thirdParty ? "run" : modelPath;
+
 		// Build URL: use AI Gateway if gateway option is provided, otherwise direct API
 		const url = gateway?.id
 			? `https://gateway.ai.cloudflare.com/v1/${accountId}/${gateway.id}/workers-ai/${modelPath}${
 					queryString ? `?${queryString}` : ""
 				}`
-			: `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/${modelPath}${
+			: `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/${directPath}${
 					queryString ? `?${queryString}` : ""
 				}`;
 
@@ -147,7 +153,7 @@ export function createRun(config: CreateRunConfig): AiRun {
 			}
 		}
 
-		const body = JSON.stringify(inputs);
+		const body = JSON.stringify(thirdParty ? { model, input: inputs } : inputs);
 
 		const response = await fetchFn(url, {
 			body,

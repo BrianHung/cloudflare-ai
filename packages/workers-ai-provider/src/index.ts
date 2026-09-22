@@ -13,6 +13,7 @@ import { WorkersAITranscriptionModel } from "./workersai-transcription-model";
 import type { WorkersAITranscriptionSettings } from "./workersai-transcription-settings";
 import { WorkersAISpeechModel } from "./workersai-speech-model";
 import type { WorkersAISpeechSettings } from "./workersai-speech-settings";
+import { WorkersAIEvaluationModel } from "./workersai-evaluation-model";
 import { WorkersAIRerankingModel } from "./workersai-reranking-model";
 import type { WorkersAIRerankingSettings } from "./workersai-reranking-settings";
 import type {
@@ -22,6 +23,7 @@ import type {
 	TextGenerationModels,
 	TranscriptionModels,
 	SpeechModels,
+	EvaluationModels,
 	RerankingModels,
 } from "./workersai-models";
 
@@ -40,6 +42,7 @@ export { WorkersAISpeechModel } from "./workersai-speech-model";
 export type { WorkersAISpeechSettings } from "./workersai-speech-settings";
 export { WorkersAIRerankingModel } from "./workersai-reranking-model";
 export type { WorkersAIRerankingSettings } from "./workersai-reranking-settings";
+export { WorkersAIEvaluationModel } from "./workersai-evaluation-model";
 
 // ---------------------------------------------------------------------------
 // AI Gateway delegate (route catalog models through AI Gateway)
@@ -272,6 +275,12 @@ export interface WorkersAI {
 		modelId: RerankingModels,
 		settings?: WorkersAIRerankingSettings,
 	): WorkersAIRerankingModel;
+
+	/**
+	 * Creates a model for `experimental_evaluate`, such as TypeSafe's Jev.
+	 **/
+	evaluation(modelId: EvaluationModels): WorkersAIEvaluationModel;
+	evaluationModel(modelId: EvaluationModels): WorkersAIEvaluationModel;
 }
 
 /**
@@ -570,6 +579,13 @@ export function createWorkersAI(options: WorkersAISettings): WorkersAI {
 			provider: "workersai.reranking",
 		});
 
+	const createEvaluationModel = (modelId: EvaluationModels) =>
+		new WorkersAIEvaluationModel(modelId, {
+			binding,
+			gateway: options.gateway,
+			provider: "workersai.evaluation",
+		});
+
 	const provider = (
 		modelId: TextGenerationModels,
 		settings?: WorkersAIChatSettings | DelegateCallOptions,
@@ -592,6 +608,8 @@ export function createWorkersAI(options: WorkersAISettings): WorkersAI {
 	provider.speechModel = createSpeechModel;
 	provider.reranking = createRerankingModel;
 	provider.rerankingModel = createRerankingModel;
+	provider.evaluation = createEvaluationModel;
+	provider.evaluationModel = createEvaluationModel;
 
 	return provider;
 }
